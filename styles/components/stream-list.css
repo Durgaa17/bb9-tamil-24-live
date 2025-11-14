@@ -68,6 +68,27 @@
     border-left: 3px solid var(--primary-color);
 }
 
+.stream-item.expired {
+    opacity: 0.7;
+    border-left: 3px solid var(--text-muted);
+}
+
+.stream-item.expired .live-indicator {
+    background: var(--text-muted) !important;
+}
+
+.stream-item.expired .stream-username-compact::after {
+    content: " ⚠️";
+    color: var(--offline-color);
+}
+
+.stream-item.focused {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 2px;
+    transform: scale(1.02);
+    z-index: 1;
+}
+
 .stream-thumbnail {
     width: 80px;
     height: 45px;
@@ -136,9 +157,14 @@
 
 .stream-game-compact {
     background: var(--background-light);
-    padding: 2px 6px;
-    border-radius: 8px;
+    padding: 2px 8px;
+    border-radius: 12px;
     font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
 }
 
 .stream-status-compact {
@@ -175,6 +201,12 @@
     border-radius: var(--border-radius-md);
 }
 
+.error-details {
+    font-size: var(--font-size-sm);
+    margin: var(--space-sm) 0;
+    color: var(--text-secondary);
+}
+
 /* Filter and Search */
 .stream-filters {
     padding: var(--space-md);
@@ -200,10 +232,15 @@
     color: var(--text-primary);
     font-size: var(--font-size-sm);
     outline: none;
+    transition: border-color var(--transition-fast);
 }
 
 .search-input:focus {
     border-color: var(--primary-color);
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
 }
 
 .filter-select {
@@ -214,7 +251,9 @@
     color: var(--text-primary);
     font-size: var(--font-size-sm);
     outline: none;
+    transition: border-color var(--transition-fast);
     min-width: 120px;
+    cursor: pointer;
 }
 
 .filter-select:focus {
@@ -244,6 +283,11 @@
     .stream-details-compact {
         font-size: var(--font-size-xs);
         gap: var(--space-sm);
+        flex-wrap: wrap;
+    }
+    
+    .stream-game-compact {
+        max-width: 80px;
     }
     
     .stream-filters {
@@ -253,6 +297,11 @@
     
     .search-box {
         min-width: 150px;
+    }
+    
+    .filter-select {
+        min-width: 100px;
+        font-size: var(--font-size-xs);
     }
 }
 
@@ -270,4 +319,37 @@
         outline: 3px solid var(--primary-color);
         outline-offset: 2px;
     }
+    
+    .stream-item {
+        padding: var(--space-lg);
+    }
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.stream-list-loading i {
+    animation: pulse 1.5s infinite;
+}
+
+/* Scrollbar styling for stream list */
+.stream-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.stream-list::-webkit-scrollbar-track {
+    background: var(--background-light);
+}
+
+.stream-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.stream-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
 }
