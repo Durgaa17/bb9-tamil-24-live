@@ -7,9 +7,16 @@ const StreamManager = {
 
     // Initialize stream manager
     async init() {
-        await this.loadStreams();
-        this.setupAutoRefresh();
-        this.loadCurrentStream();
+        try {
+            await this.loadStreams();
+            this.setupAutoRefresh();
+            this.loadCurrentStream();
+            
+            // Check for expired streams on init
+            this.checkExpiredStreams();
+        } catch (error) {
+            console.error('StreamManager init error:', error);
+        }
     },
 
     // Load streams from M3U8 URL
@@ -118,6 +125,25 @@ const StreamManager = {
     // Refresh stream data
     async refreshStreams() {
         await this.loadStreams(true);
+    },
+
+    // Check for expired streams and refresh if needed
+    checkExpiredStreams() {
+        const expiredStreams = this.streams.filter(stream => stream.isExpired);
+        if (expiredStreams.length > 0) {
+            console.log(`🔄 ${expiredStreams.length} streams expired, refreshing...`);
+            
+            // Notify about expired streams
+            this.notifyListeners('streamsExpired', expiredStreams);
+            
+            // Auto-refresh if most streams are expired
+            const expiredRatio = expiredStreams.length / this.streams.length;
+            if (expiredRatio > 0.5) {
+                this.refreshStreams();
+                return true;
+            }
+        }
+        return false;
     },
 
     // Setup auto-refresh
@@ -239,15 +265,74 @@ const StreamManager = {
 
     // Get stream statistics
     getStats() {
-        const liveStreams = this.streams.filter(stream => stream.isLive);
+        const liveStreams = this.streams.filter(stream => stream.isLive && !stream.isExpired);
+        const expiredStreams = this.streams.filter(stream => stream.isExpired);
         const totalViewers = liveStreams.reduce((sum, stream) => sum + stream.viewers, 0);
         
         return {
             total: this.streams.length,
             live: liveStreams.length,
-            offline: this.streams.length - liveStreams.length,
+            offline: this.streams.length - liveStreams.length - expiredStreams.length,
+            expired: expiredStreams.length,
             totalViewers: totalViewers
         };
+    },
+
+    // Get streams by status
+    getStreamsByStatus() {
+        return {
+            live: this.streams.filter(stream => stream.isLive && !stream.isExpired),
+            offline: this.streams.filter(stream => !stream.isLive && !stream.isExpired),
+            expired: this.streams.filter(stream => stream.isExpired)
+        };
+    },
+
+    // Search streams
+    searchStreams(query) {
+        if (!query) return this.streams;
+        
+        const searchTerm = query.toLowerCase();
+        return this.streams.filter(stream =>
+            stream.username.toLowerCase().includes(searchTerm) ||
+            stream.game.toLowerCase().includes(searchTerm) ||
+            stream.displayStatus.toLowerCase().includes(searchTerm)
+        );
+    },
+
+    // Get unique games/categories
+    getUniqueGames() {
+        const games = new Set();
+        this.streams.forEach(stream => {
+            if (stream.game) {
+                games.add(stream.game);
+            }
+        });
+        return Array.from(games).sort();
+    },
+
+    // Export stream data
+    exportData() {
+        return {
+            exportedAt: new Date().toISOString(),
+            totalStreams: this.streams.length,
+            streams: this.streams,
+            stats: this.getStats()
+        };
+    },
+
+    // Import stream data (for future use)
+    importData(data) {
+        try {
+            if (data.streams && Array.isArray(data.streams)) {
+                this.streams = data.streams;
+                this.saveToStorage();
+                this.notifyListeners('streamsUpdated', this.streams);
+                return true;
+            }
+        } catch (error) {
+            console.error('Failed to import stream data:', error);
+        }
+        return false;
     },
 
     // Cleanup
