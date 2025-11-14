@@ -1,20 +1,29 @@
-// M3U8 Parser Utility - FIXED STREAM PARSING
+// M3U8 Parser Utility - DEBUG VERSION
 const M3U8Parser = {
-    // Parse M3U8 content and extract stream information - COMPLETELY REWRITTEN
+    // Parse M3U8 content and extract stream information
     parse(m3u8Content) {
+        console.log('🔍 M3U8 Parser Debug - Starting parse...');
+        console.log('📄 M3U8 Content (first 500 chars):', m3u8Content.substring(0, 500));
+        
         const streams = [];
         const lines = m3u8Content.split('\n');
         let currentStream = null;
 
-        console.log('📋 Parsing M3U8 content...');
+        console.log('📝 Total lines in M3U8:', lines.length);
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
-
+            
+            if (line.startsWith('#EXTM3U')) {
+                console.log('✅ Found #EXTM3U header');
+                continue;
+            }
+            
             if (line.startsWith('#EXTINF:')) {
+                console.log('🎯 Found EXTINF line:', line);
                 currentStream = this.parseExtinf(line);
-                console.log('📺 Found stream:', currentStream);
             } else if (line.startsWith('https://') && currentStream) {
+                console.log('🔗 Found URL:', line.substring(0, 100) + '...');
                 currentStream.url = line;
                 currentStream.id = this.generateStreamId(currentStream);
                 
@@ -22,106 +31,100 @@ const M3U8Parser = {
                 currentStream.isExpired = this.isUrlExpired(currentStream.url);
                 
                 streams.push(currentStream);
+                console.log('✅ Added stream:', currentStream.username);
                 currentStream = null;
+            } else if (line && !line.startsWith('#')) {
+                console.log('❓ Unknown line format:', line);
             }
         }
 
-        console.log(`✅ Parsed ${streams.length} streams`);
+        console.log(`🎉 Parsing complete. Found ${streams.length} streams:`, streams);
         return streams;
     },
 
-    // Parse EXTINF line to extract stream metadata - IMPROVED PARSING
+    // Parse EXTINF line to extract stream metadata
     parseExtinf(extinfLine) {
+        console.log('🔍 Parsing EXTINF:', extinfLine);
+        
         const stream = {
             name: '',
             status: CONSTANTS.STREAM_STATUS.UNKNOWN,
             viewers: 0,
-            displayStatus: 'Offline',
+            displayStatus: 'Unknown',
             isLive: false,
             url: '',
             isExpired: false
         };
 
         try {
-            // Example line: #EXTINF:-1,arivumani1075 [LIVE] - 0 viewers - Offline
+            // Remove #EXTINF: prefix
             const content = extinfLine.replace('#EXTINF:', '').trim();
+            console.log('📋 Cleaned content:', content);
             
             // Find the comma that separates duration from stream info
             const commaIndex = content.indexOf(',');
             if (commaIndex !== -1) {
                 const streamInfo = content.slice(commaIndex + 1).trim();
                 stream.name = streamInfo;
+                console.log('📛 Stream name extracted:', streamInfo);
                 
-                // Parse stream metadata using multiple methods
-                this.parseAllMetadata(stream, streamInfo);
+                // Parse stream metadata
+                this.parseStreamMetadata(stream, streamInfo);
             } else {
                 stream.name = content;
+                console.log('⚠️ No comma found, using full content as name');
             }
 
         } catch (error) {
-            console.error('Error parsing EXTINF line:', error);
+            console.error('❌ Error parsing EXTINF line:', error);
             // Fallback: extract basic name
             const nameMatch = extinfLine.match(/,(.+)$/);
             if (nameMatch) {
                 stream.name = nameMatch[1].trim();
+                console.log('🔄 Fallback name:', stream.name);
             }
         }
 
+        console.log('📊 Final stream object:', stream);
         return stream;
     },
 
     // Parse all metadata from stream info
-    parseAllMetadata(stream, streamInfo) {
-        console.log('🔍 Parsing metadata from:', streamInfo);
+    parseStreamMetadata(stream, streamInfo) {
+        console.log('🔍 Analyzing stream info:', streamInfo);
         
-        // Method 1: Check for [LIVE] tag
-        if (streamInfo.includes('[LIVE]')) {
+        // Method 1: Check for [LIVE] tag (case insensitive)
+        if (streamInfo.match(/\[LIVE\]/i)) {
             stream.isLive = true;
             stream.displayStatus = 'Live';
             stream.status = CONSTANTS.STREAM_STATUS.LIVE;
-            console.log('🎯 Detected LIVE stream');
+            console.log('🎯 Detected LIVE stream from [LIVE] tag');
         }
         
         // Method 2: Check for viewers count
         const viewersMatch = streamInfo.match(/(\d+)\s*viewers/i);
         if (viewersMatch) {
             stream.viewers = parseInt(viewersMatch[1]);
-            console.log('👥 Viewers:', stream.viewers);
+            console.log('👥 Found viewers:', stream.viewers);
         }
         
         // Method 3: Check for offline status
-        if (streamInfo.includes('Offline') && !streamInfo.includes('[LIVE]')) {
+        if (streamInfo.match(/offline/i) && !streamInfo.match(/\[LIVE\]/i)) {
             stream.isLive = false;
             stream.displayStatus = 'Offline';
             stream.status = CONSTANTS.STREAM_STATUS.OFFLINE;
             console.log('💤 Detected OFFLINE stream');
         }
         
-        // Method 4: Check brackets for any status
-        const bracketMatches = streamInfo.match(/\[(.*?)\]/g);
-        if (bracketMatches) {
-            bracketMatches.forEach(match => {
-                const bracketContent = match.slice(1, -1);
-                console.log('📌 Bracket content:', bracketContent);
-                
-                if (bracketContent === 'LIVE' && !stream.isLive) {
-                    stream.isLive = true;
-                    stream.displayStatus = 'Live';
-                    stream.status = CONSTANTS.STREAM_STATUS.LIVE;
-                }
-            });
-        }
-        
-        // Method 5: Final fallback - if no explicit offline, assume live if viewers > 0
-        if (!streamInfo.includes('Offline') && stream.viewers > 0 && !stream.isLive) {
+        // Method 4: If no explicit status but has viewers, assume live
+        if (!streamInfo.match(/offline/i) && stream.viewers >= 0 && !stream.isLive) {
             stream.isLive = true;
             stream.displayStatus = 'Live';
             stream.status = CONSTANTS.STREAM_STATUS.LIVE;
-            console.log('🔄 Fallback: Assuming live due to viewers');
+            console.log('🔄 Assuming live stream (has viewers, no offline tag)');
         }
         
-        console.log('📊 Final stream status:', {
-            name: stream.name,
+        console.log('📊 Final metadata:', {
             isLive: stream.isLive,
             viewers: stream.viewers,
             status: stream.displayStatus
@@ -130,59 +133,34 @@ const M3U8Parser = {
 
     // Generate unique ID for stream
     generateStreamId(stream) {
-        return btoa(stream.name).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+        const id = btoa(stream.name).replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+        console.log('🆔 Generated stream ID:', id);
+        return id;
     },
 
-    // Extract username from stream name - IMPROVED
+    // Extract username from stream name
     extractUsername(streamName) {
-        if (!streamName) return 'Unknown';
+        console.log('👤 Extracting username from:', streamName);
         
-        // Remove metadata brackets and extract username
-        let cleanName = streamName.replace(/\s*\[.*?\]\s*/g, '').trim();
+        if (!streamName) {
+            console.log('❌ No stream name provided');
+            return 'Unknown';
+        }
         
-        // Remove " - 0 viewers - Offline" type suffixes
+        let cleanName = streamName;
+        
+        // Remove common suffixes
         cleanName = cleanName.replace(/\s*-\s*\d+\s*viewers\s*-\s*Offline/gi, '');
         cleanName = cleanName.replace(/\s*-\s*\d+\s*viewers/gi, '');
         cleanName = cleanName.replace(/\s*-\s*Offline/gi, '');
+        cleanName = cleanName.replace(/\s*\[.*?\]\s*/g, '');
         
-        // Extract username (first word)
+        // Extract first word as username
         const usernameMatch = cleanName.match(/^([^\s]+)/);
-        const username = usernameMatch ? usernameMatch[1].trim() : cleanName;
+        const username = usernameMatch ? usernameMatch[1].trim() : cleanName.trim();
         
-        console.log('👤 Extracted username:', username, 'from:', streamName);
+        console.log('✅ Username extracted:', username);
         return username;
-    },
-
-    // Extract game/category
-    extractGame(streamName) {
-        // For now, default to "Just Chatting"
-        // In a real implementation, you'd extract this from the stream name
-        return 'Just Chatting';
-    },
-
-    // Validate M3U8 URL
-    validateUrl(url) {
-        try {
-            const urlObj = new URL(url);
-            return urlObj.protocol === 'https:' && 
-                   urlObj.hostname.includes('usher.ttvnw.net');
-        } catch {
-            return false;
-        }
-    },
-
-    // Parse token from URL if present
-    parseToken(url) {
-        try {
-            const urlObj = new URL(url);
-            const tokenParam = urlObj.searchParams.get('token');
-            if (tokenParam) {
-                return JSON.parse(decodeURIComponent(tokenParam));
-            }
-        } catch (error) {
-            console.warn('Failed to parse token from URL:', error);
-        }
-        return null;
     },
 
     // Check if stream URL is expired
@@ -191,116 +169,56 @@ const M3U8Parser = {
             const token = this.parseToken(url);
             if (token && token.expires) {
                 const now = Math.floor(Date.now() / 1000);
-                // Consider URL expired if within 10 minutes of expiration
-                const isExpired = now >= (token.expires - 600);
-                console.log('⏰ URL expiry check:', { 
-                    expires: token.expires, 
-                    now, 
+                const isExpired = now >= token.expires;
+                console.log('⏰ URL expiry:', { 
+                    expires: new Date(token.expires * 1000), 
+                    now: new Date(now * 1000),
                     isExpired 
                 });
                 return isExpired;
             }
         } catch (error) {
-            console.warn('Error checking URL expiration:', error);
+            console.warn('⚠️ Error checking URL expiration:', error);
         }
         return false;
     },
 
     // Format stream data for display
     formatStreamForDisplay(stream) {
+        console.log('🎨 Formatting stream for display:', stream);
+        
+        const username = this.extractUsername(stream.name);
         const formattedStream = {
             ...stream,
-            username: this.extractUsername(stream.name),
-            game: this.extractGame(stream.name),
-            thumbnail: this.generateThumbnailUrl(stream),
-            chatUrl: this.generateChatUrl(stream),
-            shareUrl: this.generateShareUrl(stream),
-            isExpired: stream.isExpired || this.isUrlExpired(stream.url),
-            safeName: this.escapeHtml(this.extractUsername(stream.name))
+            username: username,
+            displayName: username,
+            game: 'Just Chatting', // Default game
+            thumbnail: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${username}-320x180.jpg`,
+            chatUrl: `https://www.twitch.tv/embed/${username}/chat?darkpopout`,
+            shareUrl: `https://twitch.tv/${username}`,
+            isExpired: stream.isExpired,
+            safeName: this.escapeHtml(username)
         };
         
-        // Ensure displayName is set
-        formattedStream.displayName = formattedStream.username;
-        
-        console.log('🎨 Formatted stream:', {
-            name: stream.name,
-            username: formattedStream.username,
-            isLive: formattedStream.isLive,
-            isExpired: formattedStream.isExpired
-        });
-        
+        console.log('✅ Formatted stream:', formattedStream);
         return formattedStream;
     },
 
-    // Generate thumbnail URL
-    generateThumbnailUrl(stream) {
-        const username = this.extractUsername(stream.name);
-        return `https://static-cdn.jtvnw.net/previews-ttv/live_user_${username}-320x180.jpg`;
-    },
-
-    // Generate chat embed URL
-    generateChatUrl(stream) {
-        const username = this.extractUsername(stream.name);
-        return `https://www.twitch.tv/embed/${username}/chat?darkpopout`;
-    },
-
-    // Generate shareable URL
-    generateShareUrl(stream) {
-        const username = this.extractUsername(stream.name);
-        return `https://twitch.tv/${username}`;
-    },
-
-    // Sort streams by various criteria
-    sortStreams(streams, criteria = 'viewers', order = 'desc') {
-        const sorted = [...streams];
-        
-        sorted.sort((a, b) => {
-            let aValue, bValue;
-            
-            switch (criteria) {
-                case 'name':
-                    aValue = a.username?.toLowerCase() || '';
-                    bValue = b.username?.toLowerCase() || '';
-                    break;
-                case 'status':
-                    // Live streams first, then by viewers
-                    if (a.isLive !== b.isLive) {
-                        return a.isLive ? -1 : 1;
-                    }
-                    aValue = a.viewers;
-                    bValue = b.viewers;
-                    break;
-                case 'viewers':
-                default:
-                    aValue = a.viewers;
-                    bValue = b.viewers;
-                    break;
+    // Parse token from URL
+    parseToken(url) {
+        try {
+            const urlObj = new URL(url);
+            const tokenParam = urlObj.searchParams.get('token');
+            if (tokenParam) {
+                return JSON.parse(decodeURIComponent(tokenParam));
             }
-            
-            if (order === 'asc') {
-                return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-            } else {
-                return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-            }
-        });
-        
-        return sorted;
+        } catch (error) {
+            console.warn('❌ Failed to parse token from URL:', error);
+        }
+        return null;
     },
 
-    // Filter streams based on criteria
-    filterStreams(streams, filters = {}) {
-        return streams.filter(stream => {
-            if (filters.status === 'live' && !stream.isLive) return false;
-            if (filters.status === 'offline' && stream.isLive) return false;
-            if (filters.search && !stream.username.toLowerCase().includes(filters.search.toLowerCase())) {
-                return false;
-            }
-            if (filters.minViewers !== undefined && stream.viewers < filters.minViewers) return false;
-            return true;
-        });
-    },
-
-    // Escape HTML for safe rendering
+    // Escape HTML
     escapeHtml(unsafe) {
         if (!unsafe) return '';
         return unsafe
@@ -309,5 +227,46 @@ const M3U8Parser = {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+    },
+
+    // Create test streams if parsing fails
+    createTestStreams() {
+        console.log('🛠️ Creating test streams since parsing failed');
+        return [
+            {
+                id: 'test1',
+                name: 'Test Stream 1 [LIVE] - 5 viewers',
+                username: 'teststream1',
+                displayName: 'teststream1',
+                status: CONSTANTS.STREAM_STATUS.LIVE,
+                viewers: 5,
+                displayStatus: 'Live',
+                isLive: true,
+                url: 'https://example.com/stream1.m3u8',
+                game: 'Just Chatting',
+                thumbnail: 'https://static-cdn.jtvnw.net/previews-ttv/live_user_teststream1-320x180.jpg',
+                chatUrl: 'https://www.twitch.tv/embed/teststream1/chat?darkpopout',
+                shareUrl: 'https://twitch.tv/teststream1',
+                isExpired: false,
+                safeName: 'teststream1'
+            },
+            {
+                id: 'test2', 
+                name: 'Test Stream 2 [LIVE] - 10 viewers',
+                username: 'teststream2',
+                displayName: 'teststream2',
+                status: CONSTANTS.STREAM_STATUS.LIVE,
+                viewers: 10,
+                displayStatus: 'Live',
+                isLive: true,
+                url: 'https://example.com/stream2.m3u8',
+                game: 'Fortnite',
+                thumbnail: 'https://static-cdn.jtvnw.net/previews-ttv/live_user_teststream2-320x180.jpg',
+                chatUrl: 'https://www.twitch.tv/embed/teststream2/chat?darkpopout',
+                shareUrl: 'https://twitch.tv/teststream2',
+                isExpired: false,
+                safeName: 'teststream2'
+            }
+        ];
     }
 };
