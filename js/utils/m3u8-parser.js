@@ -229,8 +229,8 @@ const M3U8Parser = {
             .replace(/'/g, "&#039;");
     },
 
-    // Create test streams if parsing fails
-    createTestStreams() {
+    // Create test streams if parsing fails - FIXED: Added function syntax
+    createTestStreams: function() {
         console.log('🛠️ Creating test streams since parsing failed');
         return [
             {
