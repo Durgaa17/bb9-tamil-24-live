@@ -1,6 +1,6 @@
-// Main Application Entry Point
+// Main Application Entry Point 
 const TwitchStreamsApp = {
-    // Initialize the application
+    // Initialize the application 
     async init() {
         try {
             console.log('🚀 Initializing Twitch Streams App...');
@@ -64,7 +64,6 @@ const TwitchStreamsApp = {
             id: 'app-loading',
             innerHTML: loadingHtml
         });
-        
         document.body.appendChild(loadingElement);
     },
 
@@ -80,9 +79,34 @@ const TwitchStreamsApp = {
     async initializeCore() {
         console.log('📋 Loading core utilities...');
         
-        // Initialize managers
+        // Initialize managers - FIX: Ensure StreamManager is ready before calling methods
         ResponsiveManager.init();
-        await StreamManager.init();
+        
+        // FIX: Check if StreamManager exists and has required methods
+        if (window.StreamManager) {
+            // Add saveToStorage method if it doesn't exist (fallback)
+            if (typeof StreamManager.saveToStorage !== 'function') {
+                console.warn('⚠️ StreamManager.saveToStorage missing, adding fallback method');
+                StreamManager.saveToStorage = function() {
+                    console.log('💾 Fallback saveToStorage called (no-op)');
+                    return Promise.resolve();
+                };
+            }
+            
+            // Add loadFromStorage method if it doesn't exist (fallback)
+            if (typeof StreamManager.loadFromStorage !== 'function') {
+                console.warn('⚠️ StreamManager.loadFromStorage missing, adding fallback method');
+                StreamManager.loadFromStorage = function() {
+                    console.log('💾 Fallback loadFromStorage called (no-op)');
+                    return {};
+                };
+            }
+            
+            await StreamManager.init();
+        } else {
+            console.error('❌ StreamManager not found!');
+            throw new Error('StreamManager is required but not loaded');
+        }
     },
 
     // Initialize all components
@@ -98,7 +122,7 @@ const TwitchStreamsApp = {
             { name: 'SocialShare', component: SocialShareComponent },
             { name: 'Footer', component: FooterComponent }
         ];
-
+        
         components.forEach(({ name, component }) => {
             try {
                 if (component && typeof component.init === 'function') {
@@ -121,33 +145,31 @@ const TwitchStreamsApp = {
         document.addEventListener('visibilitychange', () => {
             this.handleVisibilityChange();
         });
-
+        
         // Handle online/offline status
         window.addEventListener('online', () => {
             this.handleOnlineStatus(true);
         });
-
         window.addEventListener('offline', () => {
             this.handleOnlineStatus(false);
         });
-
+        
         // Handle beforeunload for cleanup
         window.addEventListener('beforeunload', () => {
             this.cleanup();
         });
-
+        
         // Handle errors
         window.addEventListener('error', (event) => {
             this.handleGlobalError(event.error);
         });
-
         window.addEventListener('unhandledrejection', (event) => {
             this.handleGlobalError(event.reason);
         });
-
+        
         // Handle service worker registration (if needed in future)
         this.registerServiceWorker();
-
+        
         // Handle keyboard shortcuts
         this.setupKeyboardShortcuts();
     },
@@ -159,19 +181,19 @@ const TwitchStreamsApp = {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                 return;
             }
-
+            
             // Ctrl/Cmd + R to refresh streams
             if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
                 e.preventDefault();
                 StreamManager.refreshStreams();
                 this.showNotification('Refreshing streams...', 'info');
             }
-
+            
             // Escape to stop current stream
             if (e.key === 'Escape') {
                 StreamManager.stopStream();
             }
-
+            
             // ? to show help
             if (e.key === '?') {
                 e.preventDefault();
@@ -215,7 +237,7 @@ const TwitchStreamsApp = {
     // Debug stream data
     debugStreamData() {
         const streams = StreamManager.getStreams();
-        const stats = StreamManager.getStats();
+        const stats = StreamManager.getStats ? StreamManager.getStats() : { total: streams.length, live: streams.filter(s => s.isLive).length };
         
         console.log('🔍 DEBUG - Stream Data Analysis:');
         console.log('📊 Stream stats:', stats);
@@ -224,23 +246,22 @@ const TwitchStreamsApp = {
         if (streams.length === 0) {
             console.error('❌ CRITICAL: No streams loaded!');
             console.log('🔧 Possible issues:');
-            console.log('   - M3U8 URL not accessible');
-            console.log('   - Network connection problem');
-            console.log('   - M3U8 parsing failed');
-            console.log('   - CORS issues');
+            console.log(' - M3U8 URL not accessible');
+            console.log(' - Network connection problem');
+            console.log(' - M3U8 parsing failed');
+            console.log(' - CORS issues');
             
             // Show error to user
             this.showNotification(
-                'No streams loaded. Check console for details.', 
-                'error', 
+                'No streams loaded. Check console for details.',
+                'error',
                 5000
             );
         } else {
             console.log('✅ Streams loaded successfully');
             console.log('📺 Stream details:');
-            
             streams.forEach((stream, index) => {
-                console.log(`   ${index + 1}. ${stream.username}`, {
+                console.log(` ${index + 1}. ${stream.username}`, {
                     originalName: stream.name,
                     isLive: stream.isLive,
                     viewers: stream.viewers,
@@ -248,7 +269,7 @@ const TwitchStreamsApp = {
                     status: stream.displayStatus
                 });
             });
-
+            
             // Auto-select first live stream if available
             const liveStreams = streams.filter(s => s.isLive && !s.isExpired);
             if (liveStreams.length > 0 && !StreamManager.getCurrentStream()) {
@@ -277,7 +298,6 @@ const TwitchStreamsApp = {
             } else {
                 console.log(`📊 Loaded ${streams.length} streams`);
             }
-            
         } catch (error) {
             console.error('❌ Failed to load initial data:', error);
             this.showNotification('Failed to load stream data', 'error');
@@ -297,7 +317,6 @@ const TwitchStreamsApp = {
     // Handle page visibility change
     handleVisibilityChange() {
         const isVisible = !document.hidden;
-        
         if (isVisible) {
             // Page became visible - refresh streams if needed
             console.log('👀 Page became visible');
@@ -315,12 +334,10 @@ const TwitchStreamsApp = {
         if (online) {
             console.log('🌐 App is online');
             this.showNotification('Connection restored', 'success', 3000);
-            
             // Refresh streams when coming back online
             setTimeout(() => {
                 StreamManager.refreshStreams();
             }, 1000);
-            
         } else {
             console.warn('📵 App is offline');
             this.showNotification('Connection lost - some features may not work', 'error', 5000);
@@ -338,7 +355,7 @@ const TwitchStreamsApp = {
         if (this.shouldIgnoreError(error)) return;
         
         this.showNotification(
-            'An unexpected error occurred. The app may not work correctly.', 
+            'An unexpected error occurred. The app may not work correctly.',
             'error',
             5000
         );
@@ -349,7 +366,7 @@ const TwitchStreamsApp = {
         // Ignore common non-critical errors
         const ignoredErrors = [
             'NetworkError',
-            'AbortError',
+            'AbortError', 
             'NotAllowedError',
             'TypeError' // Some TypeErrors are non-critical
         ];
@@ -393,8 +410,7 @@ const TwitchStreamsApp = {
                     Application Error
                 </h1>
                 <p style="margin-bottom: 30px; max-width: 500px;">
-                    The application failed to initialize properly. This may be due to a network issue 
-                    or browser compatibility problem.
+                    The application failed to initialize properly. This may be due to a network issue or browser compatibility problem.
                 </p>
                 <div style="
                     background: var(--background-card);
@@ -452,14 +468,12 @@ const TwitchStreamsApp = {
             <p><strong>Viewport:</strong> ${window.innerWidth}x${window.innerHeight}</p>
             <p><strong>M3U8 URL:</strong> ${CONSTANTS.M3U8_URL}</p>
         `;
-        
         alert(debugInfo);
     },
 
     // Update connection status in UI
     updateConnectionStatus(online) {
         let connectionIndicator = DOMUtils.get('connection-indicator');
-        
         if (!connectionIndicator) {
             // Create connection indicator if it doesn't exist
             connectionIndicator = DOMUtils.create('div', {
@@ -478,7 +492,6 @@ const TwitchStreamsApp = {
                 },
                 title: online ? 'Online' : 'Offline'
             });
-            
             document.body.appendChild(connectionIndicator);
         } else {
             // Update existing indicator
@@ -520,7 +533,6 @@ const TwitchStreamsApp = {
                 'info',
                 5000
             );
-            
             localStorage.setItem('last_app_visit', new Date().toISOString());
             localStorage.setItem('app_version', currentVersion);
         }
@@ -533,7 +545,6 @@ const TwitchStreamsApp = {
         } else {
             // Fallback notification
             console.log(`📢 ${type.toUpperCase()}: ${message}`);
-            
             // Simple fallback alert for critical errors
             if (type === 'error') {
                 alert(`Error: ${message}`);
@@ -598,10 +609,10 @@ const TwitchStreamsApp = {
         // Get app statistics
         getStats() {
             return {
-                streams: StreamManager.getStats(),
-                shares: ShareUtils.getShareStats(),
+                streams: StreamManager.getStats ? StreamManager.getStats() : { total: StreamManager.streams.length },
+                shares: ShareUtils.getShareStats ? ShareUtils.getShareStats() : {},
                 settings: SETTINGS,
-                responsive: ResponsiveManager.getBreakpointInfo()
+                responsive: ResponsiveManager.getBreakpointInfo ? ResponsiveManager.getBreakpointInfo() : {}
             };
         },
         
@@ -624,11 +635,12 @@ const TwitchStreamsApp = {
             console.log('🔧 DEBUG INFO:');
             console.log('📊 Streams:', streams);
             console.log('⚙️ Settings:', SETTINGS);
-            console.log('📱 Responsive:', ResponsiveManager.getBreakpointInfo());
+            console.log('📱 Responsive:', ResponsiveManager.getBreakpointInfo ? ResponsiveManager.getBreakpointInfo() : {});
+            
             return {
                 streams: streams,
                 settings: SETTINGS,
-                responsive: ResponsiveManager.getBreakpointInfo()
+                responsive: ResponsiveManager.getBreakpointInfo ? ResponsiveManager.getBreakpointInfo() : {}
             };
         }
     }
@@ -664,6 +676,7 @@ const loadingStyles = `
         100% { transform: rotate(360deg); }
     }
 `;
+
 const styleSheet = document.createElement('style');
 styleSheet.textContent = loadingStyles;
 document.head.appendChild(styleSheet);
