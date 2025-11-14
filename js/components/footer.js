@@ -409,4 +409,89 @@ const FooterComponent = {
                 position: 'fixed',
                 top: 0,
                 left: 0,
-                width: '100%
+                width: '100%',
+                height: '100%',
+                background: 'rgba(0, 0, 0, 0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 'var(--z-modal)'
+            }
+        });
+
+        const modalContent = DOMUtils.create('div', {
+            className: 'modal-content',
+            style: {
+                background: 'var(--background-card)',
+                padding: 'var(--space-xl)',
+                borderRadius: 'var(--border-radius-lg)',
+                maxWidth: '500px',
+                width: '90%',
+                maxHeight: '80vh',
+                overflowY: 'auto'
+            }
+        }, [
+            DOMUtils.create('h3', {
+                style: { 
+                    marginBottom: 'var(--space-lg)',
+                    color: 'var(--primary-color)'
+                },
+                textContent: title
+            }),
+            DOMUtils.create('div', {
+                innerHTML: content,
+                style: {
+                    marginBottom: 'var(--space-lg)',
+                    lineHeight: '1.6'
+                }
+            }),
+            DOMUtils.create('button', {
+                className: 'chat-connect-btn',
+                onclick: () => document.body.removeChild(modal),
+                textContent: 'Close'
+            })
+        ]);
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        // Close modal on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function closeModal(e) {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', closeModal);
+            }
+        });
+    },
+
+    // Show notification
+    showNotification(message, type = 'info') {
+        if (window.HeaderComponent) {
+            HeaderComponent.showNotification(message, type);
+        }
+    },
+
+    // Update footer layout
+    updateLayout() {
+        const footer = DOMUtils.get('footer');
+        if (!footer) return;
+
+        if (ResponsiveManager.isMobile) {
+            DOMUtils.addClass(footer, 'mobile-layout');
+        } else {
+            DOMUtils.removeClass(footer, 'mobile-layout');
+        }
+    },
+
+    // Cleanup
+    destroy() {
+        // Cleanup if needed
+    }
+};
