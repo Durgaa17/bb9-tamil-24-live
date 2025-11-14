@@ -1,158 +1,233 @@
-// Stream Manager - DEBUG VERSION
+// Stream Manager with Storage Fix
 const StreamManager = {
     streams: [],
     currentStream: null,
-    refreshInterval: null,
     listeners: {},
+    isInitialized: false,
 
-    // Initialize stream manager
-    async init() {
-        console.log('🚀 StreamManager init started');
+    // Initialize with storage support
+    init() {
+        console.log('🔄 StreamManager initializing...');
+        
+        // Load saved streams from storage
+        this.loadFromStorage();
+        
+        // Set up auto-save
+        this.setupAutoSave();
+        
+        this.isInitialized = true;
+        console.log('✅ StreamManager initialized');
+    },
+
+    // Load streams from localStorage
+    loadFromStorage() {
         try {
-            await this.loadStreams();
-            this.setupAutoRefresh();
-            this.loadCurrentStream();
-            
-            // Check for expired streams on init
-            this.checkExpiredStreams();
-            
-            console.log('✅ StreamManager init completed');
+            const saved = localStorage.getItem('twitch_streams_data');
+            if (saved) {
+                const data = JSON.parse(saved);
+                this.streams = data.streams || [];
+                this.currentStream = data.currentStream || null;
+                console.log('💾 Loaded streams from storage:', this.streams.length);
+            }
         } catch (error) {
-            console.error('❌ StreamManager init failed:', error);
-            // Create test streams if loading fails
-            this.createFallbackStreams();
+            console.warn('❌ Failed to load from storage:', error);
         }
     },
 
-    // Load streams from M3U8 URL
-    async loadStreams(forceRefresh = false) {
-        console.log('📥 Loading streams, forceRefresh:', forceRefresh);
+    // Save streams to localStorage
+    saveToStorage() {
+        try {
+            const data = {
+                streams: this.streams,
+                currentStream: this.currentStream,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('twitch_streams_data', JSON.stringify(data));
+            console.log('💾 Saved streams to storage');
+        } catch (error) {
+            console.warn('❌ Failed to save to storage:', error);
+        }
+    },
+
+    // Set up auto-save on changes
+    setupAutoSave() {
+        // Auto-save when streams update
+        this.on('streamsUpdated', () => {
+            setTimeout(() => this.saveToStorage(), 100);
+        });
+        
+        // Auto-save when stream changes
+        this.on('streamChanged', () => {
+            setTimeout(() => this.saveToStorage(), 100);
+        });
+    },
+
+    // Parse M3U8 and update streams
+    async parseM3U8(m3u8Content) {
+        console.log('📥 Parsing M3U8 content...');
         
         try {
-            DOMUtils.addClass(DOMUtils.get('stream-list-container'), CONSTANTS.CLASS_NAMES.LOADING);
-            
-            console.log('🔗 Fetching M3U8 from:', CONSTANTS.M3U8_URL);
-            const response = await fetch(CONSTANTS.M3U8_URL + '?t=' + (forceRefresh ? Date.now() : ''));
-            
-            console.log('📡 Response status:', response.status, response.statusText);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const m3u8Content = await response.text();
-            console.log('✅ M3U8 content received, length:', m3u8Content.length);
-            
             const parsedStreams = M3U8Parser.parse(m3u8Content);
-            console.log('📊 Parsed streams:', parsedStreams.length);
+            console.log('📊 Raw parsed streams:', parsedStreams.length);
             
+            // Format streams for display
             this.streams = parsedStreams.map(stream => 
                 M3U8Parser.formatStreamForDisplay(stream)
             );
             
-            console.log('🎯 Final streams array:', this.streams);
+            console.log('🎯 Formatted streams:', this.streams.length);
             
-            this.saveToStorage();
+            // Notify listeners
             this.notifyListeners('streamsUpdated', this.streams);
             
-        } catch (error) {
-            console.error('❌ Failed to load streams:', error);
-            this.loadFromStorage(); // Fallback to cached data
-            
-            // If still no streams, create fallback
-            if (this.streams.length === 0) {
-                this.createFallbackStreams();
+            // Auto-play first live stream if none is playing
+            if (!this.currentStream && this.streams.length > 0) {
+                const firstLiveStream = this.streams.find(stream => stream.isLive);
+                if (firstLiveStream) {
+                    this.playStream(firstLiveStream);
+                }
             }
             
-            this.notifyListeners('streamsError', error);
-        } finally {
-            DOMUtils.removeClass(DOMUtils.get('stream-list-container'), CONSTANTS.CLASS_NAMES.LOADING);
+            return this.streams;
+            
+        } catch (error) {
+            console.error('❌ M3U8 parsing failed:', error);
+            
+            // Fallback to test streams
+            console.log('🔄 Falling back to test streams...');
+            this.streams = M3U8Parser.createTestStreams();
+            this.notifyListeners('streamsUpdated', this.streams);
+            
+            return this.streams;
         }
     },
 
-    // Create fallback streams if everything fails
-    createFallbackStreams() {
-        console.log('🛠️ Creating fallback test streams');
-        this.streams = M3U8Parser.createTestStreams();
-        this.saveToStorage();
+    // Play a specific stream
+    playStream(stream) {
+        console.log('🎬 Playing stream:', stream.username);
+        
+        this.currentStream = stream;
+        
+        // Notify listeners
+        this.notifyListeners('streamChanged', stream);
         this.notifyListeners('streamsUpdated', this.streams);
         
-        // Show notification about fallback
-        if (window.HeaderComponent) {
-            HeaderComponent.showNotification(
-                'Using test streams - check console for M3U8 loading issues',
-                'error',
-                5000
-            );
+        // Update URL without page reload
+        this.updateUrl(stream.username);
+    },
+
+    // Refresh streams from source
+    async refreshStreams() {
+        console.log('🔄 Refreshing streams...');
+        
+        try {
+            const M3U8_URL = 'https://raw.githubusercontent.com/Durgaa17/twitch-finder/refs/heads/main/output/twitch_all.m3u8';
+            const response = await fetch(M3U8_URL);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const m3u8Content = await response.text();
+            await this.parseM3U8(m3u8Content);
+            
+            console.log('✅ Streams refreshed successfully');
+            
+        } catch (error) {
+            console.error('❌ Stream refresh failed:', error);
+            
+            // Notify error
+            this.notifyListeners('streamsError', error.message);
         }
+    },
+
+    // Get live streams only
+    getLiveStreams() {
+        return this.streams.filter(stream => stream.isLive && !stream.isExpired);
+    },
+
+    // Get streams by game
+    getStreamsByGame(game) {
+        return this.streams.filter(stream => 
+            stream.game.toLowerCase().includes(game.toLowerCase())
+        );
+    },
+
+    // Search streams
+    searchStreams(query) {
+        if (!query) return this.streams;
+        
+        return this.streams.filter(stream =>
+            stream.username.toLowerCase().includes(query.toLowerCase()) ||
+            stream.displayName.toLowerCase().includes(query.toLowerCase()) ||
+            stream.game.toLowerCase().includes(query.toLowerCase())
+        );
+    },
+
+    // Update URL
+    updateUrl(username) {
+        const newUrl = `${window.location.pathname}?stream=${encodeURIComponent(username)}`;
+        window.history.replaceState({}, '', newUrl);
+    },
+
+    // Event listener system
+    on(event, callback) {
+        if (!this.listeners[event]) {
+            this.listeners[event] = [];
+        }
+        this.listeners[event].push(callback);
+    },
+
+    // Notify listeners
+    notifyListeners(event, data) {
+        if (this.listeners[event]) {
+            this.listeners[event].forEach(callback => {
+                try {
+                    callback(data);
+                } catch (error) {
+                    console.error(`❌ Error in ${event} listener:`, error);
+                }
+            });
+        }
+    },
+
+    // Get stream by username
+    getStreamByUsername(username) {
+        return this.streams.find(stream => 
+            stream.username.toLowerCase() === username.toLowerCase()
+        );
+    },
+
+    // Get current stream info
+    getCurrentStream() {
+        return this.currentStream;
     },
 
     // Get all streams
-    getStreams(filters = {}) {
-        console.log('🔍 Getting streams with filters:', filters);
-        let filteredStreams = this.streams;
-        
-        if (filters.status) {
-            filteredStreams = filteredStreams.filter(stream => 
-                filters.status === 'live' ? stream.isLive : !stream.isLive
-            );
-        }
-        
-        if (filters.search) {
-            filteredStreams = filteredStreams.filter(stream =>
-                stream.username.toLowerCase().includes(filters.search.toLowerCase()) ||
-                stream.game.toLowerCase().includes(filters.search.toLowerCase())
-            );
-        }
-        
-        const sortedStreams = M3U8Parser.sortStreams(
-            filteredStreams, 
-            SETTINGS.streamList.sortBy, 
-            SETTINGS.streamList.sortOrder
-        );
-        
-        console.log('📋 Filtered streams:', sortedStreams.length);
-        return sortedStreams;
+    getAllStreams() {
+        return this.streams;
     },
 
-    // Rest of the methods remain mostly the same but with added logging...
-    getStreamById(streamId) {
-        const stream = this.streams.find(stream => stream.id === streamId);
-        console.log('🔍 Getting stream by ID:', streamId, 'found:', !!stream);
-        return stream;
-    },
-
-    setCurrentStream(stream) {
-        console.log('🎯 Setting current stream:', stream?.username);
-        if (this.currentStream?.id === stream?.id) return;
-        
-        this.currentStream = stream;
-        this.saveCurrentStream();
-        this.notifyListeners('streamChanged', stream);
-        
-        if (stream) {
-            this.updatePageTitle(stream);
-            this.updateSocialShare(stream);
-        }
-    },
-
-    // ... (keep all other methods but add console logs to key ones)
-
-    // Get stream statistics
-    getStats() {
-        const liveStreams = this.streams.filter(stream => stream.isLive && !stream.isExpired);
-        const expiredStreams = this.streams.filter(stream => stream.isExpired);
-        const totalViewers = liveStreams.reduce((sum, stream) => sum + stream.viewers, 0);
-        
-        const stats = {
-            total: this.streams.length,
-            live: liveStreams.length,
-            offline: this.streams.length - liveStreams.length - expiredStreams.length,
-            expired: expiredStreams.length,
-            totalViewers: totalViewers
-        };
-        
-        console.log('📊 Stream stats:', stats);
-        return stats;
+    // Clear all data
+    clearData() {
+        this.streams = [];
+        this.currentStream = null;
+        localStorage.removeItem('twitch_streams_data');
+        this.notifyListeners('streamsUpdated', []);
+        console.log('🗑️ All data cleared');
     }
 };
+
+// Auto-initialize
+if (typeof window !== 'undefined') {
+    window.StreamManager = StreamManager;
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            StreamManager.init();
+        });
+    } else {
+        StreamManager.init();
+    }
+}
