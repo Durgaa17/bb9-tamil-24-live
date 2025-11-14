@@ -1,0 +1,224 @@
+/* Social Share Styles */
+.social-share {
+    padding: var(--space-lg);
+    background: var(--background-card);
+    border-radius: var(--border-radius-lg);
+    margin-top: var(--space-lg);
+}
+
+.social-share-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.social-share-header i {
+    color: var(--primary-color);
+}
+
+/* Share Buttons */
+.share-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: var(--space-sm);
+}
+
+.share-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    color: white;
+}
+
+.share-button i {
+    font-size: var(--font-size-lg);
+}
+
+.share-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Platform Specific Colors */
+.share-facebook {
+    background: #1877f2;
+}
+
+.share-facebook:hover {
+    background: #166fe5;
+}
+
+.share-whatsapp {
+    background: #25d366;
+}
+
+.share-whatsapp:hover {
+    background: #22c35e;
+}
+
+.share-telegram {
+    background: #0088cc;
+}
+
+.share-telegram:hover {
+    background: #007ab8;
+}
+
+.share-twitter {
+    background: #1da1f2;
+}
+
+.share-twitter:hover {
+    background: #1a94da;
+}
+
+.share-tiktok {
+    background: #000000;
+}
+
+.share-tiktok:hover {
+    background: #333333;
+}
+
+.share-reddit {
+    background: #ff5700;
+}
+
+.share-reddit:hover {
+    background: #e64e00;
+}
+
+.share-copy {
+    background: var(--primary-color);
+}
+
+.share-copy:hover {
+    background: var(--primary-dark);
+}
+
+/* Share URL */
+.share-url {
+    margin-top: var(--space-md);
+}
+
+.url-copy-container {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.url-input {
+    flex: 1;
+    background: var(--background-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-md);
+    padding: var(--space-sm) var(--space-md);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    outline: none;
+}
+
+.url-input:focus {
+    border-color: var(--primary-color);
+}
+
+.copy-btn {
+    background: var(--primary-color);
+    border: none;
+    border-radius: var(--border-radius-md);
+    color: white;
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    transition: background var(--transition-fast);
+    white-space: nowrap;
+}
+
+.copy-btn:hover {
+    background: var(--primary-dark);
+}
+
+.copy-btn.copied {
+    background: var(--online-color);
+}
+
+/* Share Stats */
+.share-stats {
+    display: flex;
+    gap: var(--space-lg);
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-color);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.share-stat {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+/* Mobile Social Share */
+@media (max-width: 768px) {
+    .social-share {
+        padding: var(--space-md);
+        margin-top: var(--space-md);
+    }
+    
+    .share-buttons {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: var(--space-xs);
+    }
+    
+    .share-button {
+        padding: var(--space-sm);
+        font-size: var(--font-size-xs);
+        flex-direction: column;
+        gap: var(--space-xs);
+    }
+    
+    .share-button i {
+        font-size: var(--font-size-base);
+    }
+    
+    .url-copy-container {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+    
+    .share-stats {
+        gap: var(--space-md);
+        font-size: var(--font-size-xs);
+    }
+}
+
+/* Android TV Social Share */
+@media (min-width: 1200px) {
+    .share-button:focus {
+        outline: 3px solid white;
+        outline-offset: 2px;
+        transform: scale(1.05);
+    }
+    
+    .copy-btn:focus {
+        outline: 3px solid var(--primary-color);
+        outline-offset: 2px;
+    }
+    
+    .url-input:focus {
+        outline: 2px solid var(--primary-color);
+    }
+}
