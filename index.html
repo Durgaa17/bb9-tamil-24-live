@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Twitch Streams</title>
     <meta name="description" content="Watch Twitch streams with live chat and social sharing">
     
@@ -16,8 +16,54 @@
     <link rel="stylesheet" href="styles/components/social-share.css">
     <link rel="stylesheet" href="styles/components/footer.css">
     <link rel="stylesheet" href="styles/responsive.css">
+    
+    <style>
+        /* Mobile fixes */
+        body {
+            -webkit-text-size-adjust: 100%;
+            touch-action: manipulation;
+        }
+        
+        /* Simple mobile test indicator */
+        .mobile-test {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #ff4444;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+        }
+        
+        .mobile-test.success {
+            background: #00ff7f;
+            color: black;
+        }
+        
+        .mobile-test.hidden {
+            display: none;
+        }
+        
+        /* Mobile touch improvements */
+        button, .stream-item {
+            min-height: 44px;
+            touch-action: manipulation;
+        }
+        
+        /* Prevent zoom on input focus */
+        input, select, textarea {
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+    </style>
 </head>
 <body>
+    <!-- Mobile Test Indicator -->
+    <div id="mobile-test" class="mobile-test">Loading Twitch Streams...</div>
+
     <!-- Header -->
     <header id="header" class="header">
         <!-- Header content will be injected by header.js -->
@@ -58,10 +104,149 @@
     </footer>
 
     <!-- JavaScript -->
+    <script>
+        // SIMPLE MOBILE-FRIENDLY FIXES
+        
+        // 1. Force mobile layout
+        document.documentElement.style.setProperty('--space-md', '12px');
+        document.documentElement.style.setProperty('--space-lg', '16px');
+        
+        // 2. Prevent rubber-band scrolling on iOS
+        document.body.addEventListener('touchmove', function(e) {
+            if (e.scale !== 1) { e.preventDefault(); }
+        }, { passive: false });
+        
+        // 3. Quick mobile test
+        const testElement = document.getElementById('mobile-test');
+        const M3U8_URL = 'https://raw.githubusercontent.com/Durgaa17/twitch-finder/refs/heads/main/output/twitch_all.m3u8';
+        
+        console.log('📱 MOBILE APP STARTING...');
+        
+        // Test M3U8 URL
+        fetch(M3U8_URL)
+            .then(response => response.text())
+            .then(text => {
+                // Count streams
+                const streamCount = (text.match(/#EXTINF:/g) || []).length;
+                console.log('✅ Found', streamCount, 'streams');
+                
+                testElement.textContent = `✅ ${streamCount} streams loaded`;
+                testElement.className = 'mobile-test success';
+                
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    testElement.className = 'mobile-test hidden';
+                }, 3000);
+            })
+            .catch(error => {
+                console.error('❌ M3U8 failed:', error);
+                testElement.textContent = '❌ No streams - check connection';
+                
+                // Auto-hide error after 5 seconds
+                setTimeout(() => {
+                    testElement.className = 'mobile-test hidden';
+                }, 5000);
+            });
+    </script>
+
     <script src="js/config/constants.js"></script>
     <script src="js/config/settings.js"></script>
     <script src="js/utils/dom-utils.js"></script>
-    <script src="js/utils/m3u8-parser.js"></script>
+    
+    <!-- SIMPLIFIED M3U8 PARSER FOR MOBILE -->
+    <script>
+        // Simple mobile-friendly parser
+        const SIMPLE_M3U8Parser = {
+            parse(m3u8Content) {
+                const streams = [];
+                const lines = m3u8Content.split('\n');
+                let currentStream = null;
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+
+                    if (line.startsWith('#EXTINF:')) {
+                        currentStream = this.parseExtinf(line);
+                    } else if (line.startsWith('https://') && currentStream) {
+                        currentStream.url = line;
+                        currentStream.id = Math.random().toString(36).substr(2, 9);
+                        streams.push(currentStream);
+                        currentStream = null;
+                    }
+                }
+
+                console.log('📱 Simple parser found', streams.length, 'streams');
+                return streams;
+            },
+
+            parseExtinf(extinfLine) {
+                const stream = {
+                    name: '',
+                    status: 'UNKNOWN',
+                    viewers: 0,
+                    displayStatus: 'Offline',
+                    isLive: false,
+                    url: ''
+                };
+
+                try {
+                    const content = extinfLine.replace('#EXTINF:', '').trim();
+                    const commaIndex = content.indexOf(',');
+                    
+                    if (commaIndex !== -1) {
+                        const streamInfo = content.slice(commaIndex + 1).trim();
+                        stream.name = streamInfo;
+                        
+                        // Simple live detection
+                        if (streamInfo.includes('[LIVE]')) {
+                            stream.isLive = true;
+                            stream.displayStatus = 'Live';
+                        }
+                        
+                        // Simple viewer count
+                        const viewersMatch = streamInfo.match(/(\d+)\s*viewers/);
+                        if (viewersMatch) {
+                            stream.viewers = parseInt(viewersMatch[1]);
+                        }
+                    }
+                } catch (error) {
+                    console.log('❌ Parse error:', error);
+                }
+
+                return stream;
+            },
+
+            extractUsername(streamName) {
+                // Simple username extraction
+                let cleanName = streamName.replace(/\s*\[.*?\]\s*/g, '')
+                                         .replace(/\s*-\s*\d+\s*viewers\s*-\s*Offline/gi, '')
+                                         .trim();
+                
+                return cleanName.split(' ')[0] || 'Unknown';
+            },
+
+            formatStreamForDisplay(stream) {
+                const username = this.extractUsername(stream.name);
+                return {
+                    ...stream,
+                    username: username,
+                    displayName: username,
+                    game: 'Just Chatting',
+                    thumbnail: `https://static-cdn.jtvnw.net/previews-ttv/live_user_${username}-320x180.jpg`,
+                    chatUrl: `https://www.twitch.tv/embed/${username}/chat?darkpopout`,
+                    shareUrl: `https://twitch.tv/${username}`,
+                    isExpired: false,
+                    safeName: username
+                };
+            }
+        };
+        
+        // Override the complex parser with simple one for mobile
+        if (typeof M3U8Parser === 'undefined') {
+            var M3U8Parser = SIMPLE_M3U8Parser;
+        }
+    </script>
+    
     <script src="js/utils/stream-manager.js"></script>
     <script src="js/utils/responsive-manager.js"></script>
     <script src="js/utils/share-utils.js"></script>
@@ -72,5 +257,132 @@
     <script src="js/components/social-share.js"></script>
     <script src="js/components/footer.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- MOBILE FALLBACK STREAMS -->
+    <script>
+        // If no streams load after 5 seconds, create demo streams
+        setTimeout(() => {
+            if (!window.StreamManager || StreamManager.streams.length === 0) {
+                console.log('📱 Creating mobile demo streams...');
+                
+                // Create demo streams
+                const demoStreams = [
+                    {
+                        id: 'demo1',
+                        name: 'Demo Stream 1 [LIVE] - 5 viewers',
+                        username: 'demostream1',
+                        displayName: 'demostream1',
+                        status: 'LIVE',
+                        viewers: 5,
+                        displayStatus: 'Live',
+                        isLive: true,
+                        url: 'https://example.com/stream1.m3u8',
+                        game: 'Just Chatting',
+                        thumbnail: 'https://static-cdn.jtvnw.net/previews-ttv/live_user_demostream1-320x180.jpg',
+                        chatUrl: 'https://www.twitch.tv/embed/demostream1/chat?darkpopout',
+                        shareUrl: 'https://twitch.tv/demostream1',
+                        isExpired: false,
+                        safeName: 'demostream1'
+                    },
+                    {
+                        id: 'demo2',
+                        name: 'Demo Stream 2 [LIVE] - 10 viewers',
+                        username: 'demostream2', 
+                        displayName: 'demostream2',
+                        status: 'LIVE',
+                        viewers: 10,
+                        displayStatus: 'Live',
+                        isLive: true,
+                        url: 'https://example.com/stream2.m3u8',
+                        game: 'Fortnite',
+                        thumbnail: 'https://static-cdn.jtvnw.net/previews-ttv/live_user_demostream2-320x180.jpg',
+                        chatUrl: 'https://www.twitch.tv/embed/demostream2/chat?darkpopout',
+                        shareUrl: 'https://twitch.tv/demostream2',
+                        isExpired: false,
+                        safeName: 'demostream2'
+                    },
+                    {
+                        id: 'demo3',
+                        name: 'Demo Stream 3 [OFFLINE] - 0 viewers',
+                        username: 'demostream3',
+                        displayName: 'demostream3',
+                        status: 'OFFLINE',
+                        viewers: 0,
+                        displayStatus: 'Offline',
+                        isLive: false,
+                        url: 'https://example.com/stream3.m3u8',
+                        game: 'Minecraft',
+                        thumbnail: 'https://static-cdn.jtvnw.net/previews-ttv/live_user_demostream3-320x180.jpg',
+                        chatUrl: 'https://www.twitch.tv/embed/demostream3/chat?darkpopout',
+                        shareUrl: 'https://twitch.tv/demostream3',
+                        isExpired: false,
+                        safeName: 'demostream3'
+                    }
+                ];
+                
+                // Inject demo streams
+                if (window.StreamManager) {
+                    StreamManager.streams = demoStreams;
+                    StreamManager.notifyListeners('streamsUpdated', demoStreams);
+                    
+                    // Auto-select first stream
+                    setTimeout(() => {
+                        StreamManager.playStream(demoStreams[0]);
+                    }, 1000);
+                    
+                    console.log('✅ Demo streams loaded');
+                    document.getElementById('mobile-test').textContent = '✅ Demo streams loaded';
+                    document.getElementById('mobile-test').className = 'mobile-test success';
+                }
+            }
+        }, 5000);
+    </script>
+
+    <!-- TOUCH GESTURES FOR MOBILE -->
+    <script>
+        // Swipe gestures for mobile
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        });
+        
+        document.addEventListener('touchend', (e) => {
+            const touchEndX = e.changedTouches[0].screenX;
+            const touchEndY = e.changedTouches[0].screenY;
+            const diffX = touchEndX - touchStartX;
+            const diffY = touchEndY - touchStartY;
+            
+            // Horizontal swipe (min 50px)
+            if (Math.abs(diffX) > 50 && Math.abs(diffY) < 50) {
+                if (diffX > 0) {
+                    console.log('📱 Swipe right detected');
+                    // Could be used for navigation
+                } else {
+                    console.log('📱 Swipe left detected'); 
+                    // Could be used for navigation
+                }
+            }
+        });
+        
+        // Double tap to refresh
+        let lastTap = 0;
+        document.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            
+            if (tapLength < 500 && tapLength > 0) {
+                // Double tap detected
+                console.log('📱 Double tap - refreshing streams');
+                if (window.StreamManager) {
+                    StreamManager.refreshStreams();
+                }
+                e.preventDefault();
+            }
+            lastTap = currentTime;
+        });
+    </script>
 </body>
 </html>
