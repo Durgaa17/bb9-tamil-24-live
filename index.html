@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitch Streams</title>
+    <meta name="description" content="Watch Twitch streams with live chat and social sharing">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/layout.css">
+    <link rel="stylesheet" href="styles/components/header.css">
+    <link rel="stylesheet" href="styles/components/player.css">
+    <link rel="stylesheet" href="styles/components/chat.css">
+    <link rel="stylesheet" href="styles/components/stream-list.css">
+    <link rel="stylesheet" href="styles/components/social-share.css">
+    <link rel="stylesheet" href="styles/components/footer.css">
+    <link rel="stylesheet" href="styles/responsive.css">
+</head>
+<body>
+    <!-- Header -->
+    <header id="header" class="header">
+        <!-- Header content will be injected by header.js -->
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Player Section -->
+        <section class="player-section">
+            <div id="player-container" class="player-container">
+                <!-- Player will be injected by player.js -->
+            </div>
+            
+            <!-- Social Share Buttons -->
+            <div id="social-share" class="social-share">
+                <!-- Social buttons will be injected by social-share.js -->
+            </div>
+        </section>
+
+        <!-- Chat Section -->
+        <section class="chat-section">
+            <div id="chat-container" class="chat-container">
+                <!-- Chat will be injected by chat.js -->
+            </div>
+        </section>
+
+        <!-- Stream List Section -->
+        <section class="streams-section">
+            <div id="stream-list-container" class="stream-list-container">
+                <!-- Stream list will be injected by stream-list.js -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer" class="footer">
+        <!-- Footer content will be injected by footer.js -->
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/config/constants.js"></script>
+    <script src="js/config/settings.js"></script>
+    <script src="js/utils/dom-utils.js"></script>
+    <script src="js/utils/m3u8-parser.js"></script>
+    <script src="js/utils/stream-manager.js"></script>
+    <script src="js/utils/responsive-manager.js"></script>
+    <script src="js/utils/share-utils.js"></script>
+    <script src="js/components/header.js"></script>
+    <script src="js/components/player.js"></script>
+    <script src="js/components/chat.js"></script>
+    <script src="js/components/stream-list.js"></script>
+    <script src="js/components/social-share.js"></script>
+    <script src="js/components/footer.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
