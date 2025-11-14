@@ -1,0 +1,116 @@
+/* Main Layout Structure */
+.main-container {
+    display: grid;
+    grid-template-areas: 
+        "player chat"
+        "streams streams";
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: var(--space-lg);
+    padding: var(--space-lg);
+    max-width: 1920px;
+    margin: 0 auto;
+    min-height: calc(100vh - 120px);
+}
+
+.player-section {
+    grid-area: player;
+}
+
+.chat-section {
+    grid-area: chat;
+}
+
+.streams-section {
+    grid-area: streams;
+}
+
+/* Player Container */
+.player-container {
+    position: relative;
+    background: var(--background-card);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+/* Chat Container */
+.chat-container {
+    background: var(--background-card);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    height: 500px;
+}
+
+/* Stream List Container */
+.stream-list-container {
+    background: var(--background-card);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+/* Mobile Layout */
+@media (max-width: 768px) {
+    .main-container {
+        grid-template-areas: 
+            "player"
+            "streams"
+            "chat";
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 400px;
+        gap: var(--space-md);
+        padding: var(--space-md);
+    }
+    
+    .chat-container {
+        height: 400px;
+    }
+}
+
+/* Android TV / Large Screen Layout */
+@media (min-width: 1200px) {
+    .main-container {
+        grid-template-areas: 
+            "player chat"
+            "player streams";
+        grid-template-columns: 3fr 1fr;
+        grid-template-rows: 1fr auto;
+        gap: var(--space-xl);
+        padding: var(--space-xl);
+    }
+    
+    .chat-container {
+        height: 400px;
+    }
+    
+    .streams-section {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+}
+
+/* Ultra-wide screens */
+@media (min-width: 1920px) {
+    .main-container {
+        grid-template-columns: 4fr 1fr;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .chat-section,
+    .social-share {
+        display: none !important;
+    }
+    
+    .main-container {
+        grid-template-areas: 
+            "player"
+            "streams";
+        grid-template-columns: 1fr;
+        color: black;
+        background: white;
+    }
+}
